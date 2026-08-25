@@ -16,7 +16,7 @@ const FEATURES = [
     ),
   },
   {
-    title: 'Up to 50 GB per file',
+    title: 'Up to 200 GB per file',
     text: 'Custom chunked-transfer engine slices huge files into pieces and streams them up with retries baked in.',
     icon: (
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
@@ -84,7 +84,7 @@ export function Hero() {
           <span className="grad-text">Keep it forever.</span>
         </h1>
         <p className="hero-sub">
-          Drag in any file up to 50&nbsp;GB and get a link that never expires.
+          Drag in any file up to 200&nbsp;GB and get a link that never expires.
           No accounts. No tracking. No expiry dates. Your storage, your rules.
         </p>
         <div className="cta-row">
@@ -185,7 +185,7 @@ const FAQ_ITEMS = [
   },
   {
     q: 'How big can my files be?',
-    a: 'Up to 50 GB each, unlimited number of files. Big files are split into chunks by the custom transfer engine and stitched back together on the fly when someone downloads.',
+    a: 'Up to 200 GB each, unlimited number of files. Big files are split into chunks by the custom transfer engine and stitched back together on the fly when someone downloads.',
   },
   {
     q: 'Are my files private?',

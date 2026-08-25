@@ -1499,6 +1499,62 @@ button {
   to { opacity: 1; transform: none; }
 }
 
+.global-drop {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-items: center;
+  background: rgba(8, 9, 12, 0.84);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.22s var(--ease-out), backdrop-filter 0.22s;
+}
+.global-drop.show {
+  opacity: 1;
+}
+
+.gd-frame {
+  position: relative;
+  padding: 58px 78px;
+  border-radius: var(--r-lg);
+  text-align: center;
+  animation: frame-pulse 1.5s ease-in-out infinite;
+}
+.gd-frame::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: var(--r-lg);
+  padding: 2.5px;
+  background: conic-gradient(
+    from var(--angle),
+    transparent 0deg,
+    rgba(255, 255, 255, 0.95) 50deg,
+    transparent 110deg,
+    transparent 230deg,
+    rgba(160, 170, 185, 0.75) 280deg,
+    transparent 340deg
+  );
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  animation: angle-spin 2.2s linear infinite;
+  pointer-events: none;
+}
+@keyframes frame-pulse {
+  50% { transform: scale(1.025); }
+}
+.gd-title {
+  margin-top: 16px;
+  font-size: 27px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
 @media (max-width: 860px) {
   .features-grid {
     grid-template-columns: repeat(2, 1fr);

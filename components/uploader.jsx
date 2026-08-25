@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ST,
   UploadManager,
+  filesFromDataTransfer,
   jfetch,
   loadSessions,
   removeSession,
@@ -16,6 +17,7 @@ import {
   Chip,
   FileTypeIcon,
   IconExternal,
+  IconFolder,
   IconLock,
   IconPause,
   IconPlay,
@@ -26,7 +28,7 @@ import {
   Spinner,
 } from './ui';
 
-const MAX_CLIENT_BYTES = 50 * 1024 ** 3;
+const FALLBACK_MAX = 200 * 1024 ** 3;
 
 const STATUS_CHIP = {
   [ST.queued]: { label: 'Queued', tone: '' },
@@ -42,15 +44,17 @@ export default function Uploader() {
   const toast = useToast();
   const managerRef = useRef(null);
   const fileInputRef = useRef(null);
+  const folderInputRef = useRef(null);
   const resumeInputRef = useRef(null);
   const resumeTargetRef = useRef(null);
   const [, setTick] = useState(0);
 
-  const [drag, setDrag] = useState(false);
+  const [winDrag, setWinDrag] = useState(false);
   const [lockOn, setLockOn] = useState(false);
   const [password, setPassword] = useState('');
   const [sessions, setSessions] = useState([]);
   const [copied, setCopied] = useState('');
+  const [maxBytes, setMaxBytes] = useState(FALLBACK_MAX);
 
   const bump = useCallback(() => setTick((t) => t + 1), []);
 
@@ -66,17 +70,99 @@ export default function Uploader() {
     });
     managerRef.current = manager;
     setSessions(loadSessions());
+    jfetch('/api/info')
+      .then((d) => {
+        if (d && d.ok && d.maxBytes) setMaxBytes(d.maxBytes);
+      })
+      .catch(() => {});
     return () => manager.dispose();
   }, [bump]);
 
+  const queueFilesRef = useRef(null);
+
+  const queueFiles = useCallback(
+    (pairs) => {
+      const manager = managerRef.current;
+      if (!manager || !pairs || !pairs.length) return;
+      let queuedCount = 0;
+      for (const pair of pairs) {
+        const file = pair.file;
+        if (!file) continue;
+        if (file.size > maxBytes) {
+          toast.push(
+            `"${pair.path || file.name}" is over the ${Math.floor(
+              maxBytes / 1024 ** 3
+            )} GB limit`,
+            'err'
+          );
+          continue;
+        }
+        if (file.size === 0) {
+          toast.push(`"${pair.path || file.name}" is empty`, 'err');
+          continue;
+        }
+        manager.add(file, lockOn ? password : '', pair.path || '');
+        queuedCount += 1;
+      }
+      if (queuedCount > 0) {
+        toast.push(
+          `${queuedCount} file${queuedCount > 1 ? 's' : ''} added to the queue`,
+          'ok'
+        );
+      }
+    },
+    [maxBytes, lockOn, password, toast]
+  );
+
   useEffect(() => {
-    const onPaste = (e) => {
-      const files = e.clipboardData?.files;
-      if (files && files.length) addFiles(files);
+    queueFilesRef.current = queueFiles;
+  }, [queueFiles]);
+
+  useEffect(() => {
+    let hideTimer = 0;
+    let active = false;
+    const hasFiles = (e) =>
+      e.dataTransfer && Array.from(e.dataTransfer.types || []).includes('Files');
+
+    const onDragOver = (e) => {
+      if (!hasFiles(e)) return;
+      e.preventDefault();
+      if (!active) {
+        active = true;
+        setWinDrag(true);
+      }
+      clearTimeout(hideTimer);
+      hideTimer = setTimeout(() => {
+        active = false;
+        setWinDrag(false);
+      }, 600);
     };
-    window.addEventListener('paste', onPaste);
-    return () => window.removeEventListener('paste', onPaste);
-  });
+
+    const onDrop = async (e) => {
+      if (!hasFiles(e)) return;
+      e.preventDefault();
+      clearTimeout(hideTimer);
+      active = false;
+      setWinDrag(false);
+      try {
+        const found = await filesFromDataTransfer(e.dataTransfer);
+        if (found.length && queueFilesRef.current) queueFilesRef.current(found);
+      } catch {
+        const files = Array.from((e.dataTransfer && e.dataTransfer.files) || []);
+        if (files.length && queueFilesRef.current) {
+          queueFilesRef.current(files.map((f) => ({ file: f, path: '' })));
+        }
+      }
+    };
+
+    window.addEventListener('dragover', onDragOver);
+    window.addEventListener('drop', onDrop);
+    return () => {
+      clearTimeout(hideTimer);
+      window.removeEventListener('dragover', onDragOver);
+      window.removeEventListener('drop', onDrop);
+    };
+  }, []);
 
   useEffect(() => {
     const guard = (e) => {
@@ -89,39 +175,16 @@ export default function Uploader() {
     return () => window.removeEventListener('beforeunload', guard);
   }, []);
 
-  const addFiles = useCallback(
-    (fileList) => {
-      const manager = managerRef.current;
-      if (!manager) return;
-      const files = Array.from(fileList || []);
-      let queuedCount = 0;
-      for (const file of files) {
-        if (file.size > MAX_CLIENT_BYTES) {
-          toast.push(`"${file.name}" is over the 50 GB limit`, 'err');
-          continue;
-        }
-        if (file.size === 0) {
-          toast.push(`"${file.name}" is empty`, 'err');
-          continue;
-        }
-        manager.add(file, lockOn ? password : '');
-        queuedCount += 1;
+  useEffect(() => {
+    const onPaste = (e) => {
+      const files = e.clipboardData?.files;
+      if (files && files.length) {
+        queueFiles(Array.from(files).map((f) => ({ file: f, path: '' })));
       }
-      if (queuedCount > 0) {
-        toast.push(
-          `${queuedCount} file${queuedCount > 1 ? 's' : ''} added to the queue`,
-          'ok'
-        );
-      }
-    },
-    [lockOn, password, toast]
-  );
-
-  const onDrop = (e) => {
-    e.preventDefault();
-    setDrag(false);
-    addFiles(e.dataTransfer.files);
-  };
+    };
+    window.addEventListener('paste', onPaste);
+    return () => window.removeEventListener('paste', onPaste);
+  }, [queueFiles]);
 
   const startResume = (rec) => {
     resumeTargetRef.current = rec;
@@ -167,6 +230,7 @@ export default function Uploader() {
 
   const manager = managerRef.current;
   const items = manager ? manager.items : [];
+  const gbLabel = Math.floor(maxBytes / 1024 ** 3);
 
   return (
     <div className="uploader-panel panel" id="send">
@@ -197,47 +261,56 @@ export default function Uploader() {
         multiple
         hidden
         onChange={(e) => {
-          addFiles(e.target.files);
+          queueFiles(Array.from(e.target.files || []).map((f) => ({ file: f, path: '' })));
+          e.target.value = '';
+        }}
+      />
+      <input
+        ref={folderInputRef}
+        type="file"
+        multiple
+        hidden
+        webkitdirectory=""
+        directory=""
+        onChange={(e) => {
+          queueFiles(
+            Array.from(e.target.files || []).map((f) => ({
+              file: f,
+              path: f.webkitRelativePath || f.name,
+            }))
+          );
           e.target.value = '';
         }}
       />
       <input ref={resumeInputRef} type="file" hidden onChange={onResumePick} />
 
       <div
-        className={`dropzone ${drag ? 'drag' : ''}`.trim()}
+        className={`dropzone ${winDrag ? 'drag' : ''}`.trim()}
         role="button"
         tabIndex={0}
-        aria-label="Drop files or click to browse"
+        aria-label="Drop files or folders, or click to browse"
         onClick={() => fileInputRef.current?.click()}
         onKeyDown={(e) => {
           if (e.key === 'Enter' || e.key === ' ') fileInputRef.current?.click();
         }}
-        onDragOver={(e) => {
-          e.preventDefault();
-          setDrag(true);
-        }}
-        onDragLeave={(e) => {
-          e.preventDefault();
-          setDrag(false);
-        }}
-        onDrop={onDrop}
       >
-        {drag && (
-          <div className="dz-overlay">
-            Release to send it forever
-          </div>
-        )}
         <div className="dz-body">
           <div className="dz-icon">
             <IconUpload />
           </div>
-          <div className="dz-title">Drop files here</div>
+          <div className="dz-title">Drop files or whole folders</div>
           <div className="dz-sub">
-            or <span className="linkish">browse your device</span> · paste with{' '}
+            drag from Explorer/Finder anywhere on this page · or{' '}
+            <span className="linkish">browse</span> · paste with{' '}
             <span className="kbd">Ctrl</span>+<span className="kbd">V</span>
           </div>
-          <div className="dz-meta">ANY FORMAT · UP TO 50 GB EACH · UNLIMITED FILES · LINKS NEVER EXPIRE</div>
+          <div className="dz-meta">
+            ANY FORMAT · UP TO {gbLabel} GB EACH · FOLDERS WELCOME · LINKS NEVER EXPIRE
+          </div>
           <div className="lock-row" onClick={(e) => e.stopPropagation()}>
+            <button className="lock-toggle" onClick={() => folderInputRef.current?.click()}>
+              <IconFolder /> Pick a folder
+            </button>
             <button
               className={`lock-toggle ${lockOn ? 'on' : ''}`.trim()}
               onClick={() => setLockOn((v) => !v)}
@@ -250,7 +323,7 @@ export default function Uploader() {
                 <input
                   className="input"
                   type="password"
-                  placeholder="Password (optional per-send)"
+                  placeholder="Password"
                   value={password}
                   maxLength={128}
                   onChange={(e) => setPassword(e.target.value)}
@@ -294,6 +367,16 @@ export default function Uploader() {
           )}
         </div>
       )}
+
+      <div className={`global-drop ${winDrag ? 'show' : ''}`.trim()} aria-hidden="true">
+        <div className="gd-frame">
+          <div className="dz-icon">
+            <IconUpload />
+          </div>
+          <div className="gd-title">Drop anywhere</div>
+          <div className="dz-sub">Files or entire folders — they join the queue</div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -342,7 +425,7 @@ function QueueRow({ item, onPause, onResume, onCancel }) {
       <div className="bar">
         <div
           className={`bar-fill ${busy && item.sent === 0 ? 'indeterminate' : ''}`.trim()}
-          style={{ width: `${busy ? pct : pct}%` }}
+          style={{ width: `${pct}%` }}
         />
       </div>
 

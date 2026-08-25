@@ -209,6 +209,14 @@ export function IconLock() {
   );
 }
 
+export function IconFolder() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M3.5 7.5v11a1.5 1.5 0 0 0 1.5 1.5h14a1.5 1.5 0 0 0 1.5-1.5V9a1.5 1.5 0 0 0-1.5-1.5h-7L9.8 5.2A1.5 1.5 0 0 0 8.7 4.7H5A1.5 1.5 0 0 0 3.5 6.2z" />
+    </svg>
+  );
+}
+
 export function IconTrash() {
   return (
     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true">
