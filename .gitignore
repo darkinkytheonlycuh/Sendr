@@ -1,0 +1,9 @@
+node_modules/
+.next/
+out/
+.sendr-data/
+*.log
+.env
+.env.*
+.DS_Store
+Thumbs.db
