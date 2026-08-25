@@ -6,6 +6,7 @@ import {
   hashToken,
   isValidId,
   json,
+  metaMissingResponse,
   rateLimit,
 } from '@/lib/server/util';
 
@@ -19,7 +20,7 @@ export async function GET(req, { params }) {
     try {
       meta = await readMeta(params.id);
     } catch {
-      return fail(404, 'not_found');
+      return metaMissingResponse();
     }
     return json({ ok: true, meta: publicMeta(meta) });
   } catch (err) {
@@ -40,7 +41,7 @@ export async function DELETE(req, { params }) {
     try {
       meta = await readMeta(params.id);
     } catch {
-      return fail(404, 'not_found');
+      return metaMissingResponse();
     }
     if (!token || hashToken(token) !== meta.deleteTokenHash) {
       return fail(403, 'bad_token');

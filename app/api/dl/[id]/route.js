@@ -11,6 +11,7 @@ import {
   getIp,
   handleError,
   isValidId,
+  metaMissingResponse,
   rateLimit,
   sleep,
   verifyPassword,
@@ -37,7 +38,7 @@ export async function GET(req, { params }) {
     try {
       meta = await readMeta(params.id);
     } catch {
-      return fail(404, 'not_found');
+      return metaMissingResponse();
     }
     if (meta.status !== 'ready') return fail(409, 'not_ready');
 

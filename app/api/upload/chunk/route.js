@@ -12,6 +12,7 @@ import {
   hashToken,
   isValidId,
   json,
+  metaMissingResponse,
   rateLimit,
 } from '@/lib/server/util';
 
@@ -36,7 +37,7 @@ export async function PUT(req) {
     try {
       meta = await readMeta(id);
     } catch {
-      return fail(404, 'not_found');
+      return metaMissingResponse();
     }
     if (meta.status === 'ready') return fail(409, 'already_completed');
     if (meta.status !== 'pending') return fail(409, 'not_pending');

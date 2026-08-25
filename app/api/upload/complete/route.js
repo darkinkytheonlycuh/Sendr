@@ -11,6 +11,7 @@ import {
   hashToken,
   isValidId,
   json,
+  metaMissingResponse,
   rateLimit,
   readJson,
 } from '@/lib/server/util';
@@ -32,7 +33,7 @@ export async function POST(req) {
     try {
       meta = await readMeta(id);
     } catch {
-      return fail(404, 'not_found');
+      return metaMissingResponse();
     }
     if (!token || hashToken(token) !== meta.deleteTokenHash) {
       return fail(403, 'bad_token');
