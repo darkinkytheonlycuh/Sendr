@@ -1,4 +1,4 @@
-import { TEXT_PREVIEW_LIMIT } from '@/lib/server/config';
+﻿import { TEXT_PREVIEW_LIMIT } from '@/lib/server/config';
 import {
   parseRange,
   patchMeta,
@@ -6,6 +6,7 @@ import {
   readMeta,
 } from '@/lib/server/store';
 import {
+  HttpError,
   contentDisposition,
   fail,
   getIp,
@@ -37,8 +38,11 @@ export async function GET(req, { params }) {
     let meta;
     try {
       meta = await readMeta(params.id);
-    } catch {
-      return metaMissingResponse();
+    } catch (err) {
+      if (err instanceof HttpError && err.status === 404) {
+        return metaMissingResponse();
+      }
+      throw err;
     }
     if (meta.status !== 'ready') return fail(409, 'not_ready');
 
@@ -118,3 +122,4 @@ export async function GET(req, { params }) {
     return handleError(err);
   }
 }
+

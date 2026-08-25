@@ -1,5 +1,6 @@
-import { expectedChunkSize, putChunk, readMeta } from '@/lib/server/store';
+﻿import { expectedChunkSize, putChunk, readMeta } from '@/lib/server/store';
 import {
+  HttpError,
   fail,
   getIp,
   handleError,
@@ -30,8 +31,11 @@ export async function PUT(req) {
     let meta;
     try {
       meta = await readMeta(id);
-    } catch {
-      return metaMissingResponse();
+    } catch (err) {
+      if (err instanceof HttpError && err.status === 404) {
+        return metaMissingResponse();
+      }
+      throw err;
     }
     if (meta.status === 'ready') return fail(409, 'already_completed');
     if (meta.status !== 'pending') return fail(409, 'not_pending');
@@ -59,3 +63,4 @@ export async function PUT(req) {
     return handleError(err);
   }
 }
+

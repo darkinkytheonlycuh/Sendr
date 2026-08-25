@@ -1,5 +1,6 @@
-import { listExistingChunks, publicMeta, readMeta } from '@/lib/server/store';
+﻿import { listExistingChunks, publicMeta, readMeta } from '@/lib/server/store';
 import {
+  HttpError,
   fail,
   getIp,
   handleError,
@@ -27,8 +28,11 @@ export async function POST(req) {
     let meta;
     try {
       meta = await readMeta(id);
-    } catch {
-      return metaMissingResponse();
+    } catch (err) {
+      if (err instanceof HttpError && err.status === 404) {
+        return metaMissingResponse();
+      }
+      throw err;
     }
     if (!token || hashToken(token) !== meta.deleteTokenHash) {
       return fail(403, 'bad_token');
@@ -44,3 +48,4 @@ export async function POST(req) {
     return handleError(err);
   }
 }
+
