@@ -1,3 +1,7 @@
+param(
+    [switch]$Quiet
+)
+
 $ErrorActionPreference = 'Stop'
 Set-Location -LiteralPath $PSScriptRoot
 
@@ -23,5 +27,7 @@ Write-Host "  Sendr is starting on http://localhost:$port" -ForegroundColor Gree
 Write-Host "  Files are stored in $PSScriptRoot\.sendr-data" -ForegroundColor DarkGray
 Write-Host ""
 
-Start-Process ("http://localhost:" + $port)
+if (-not $Quiet) {
+    Start-Process ("http://localhost:" + $port)
+}
 npm run start -- -H 0.0.0.0 -p $port
