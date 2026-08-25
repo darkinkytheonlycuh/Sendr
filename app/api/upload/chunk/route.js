@@ -1,10 +1,4 @@
-import fsp from 'fs/promises';
-import {
-  chunkFileOf,
-  expectedChunkSize,
-  readMeta,
-  saveBodyToFile,
-} from '@/lib/server/store';
+import { expectedChunkSize, putChunk, readMeta } from '@/lib/server/store';
 import {
   fail,
   getIp,
@@ -55,13 +49,10 @@ export async function PUT(req) {
     }
     if (!req.body) return fail(400, 'no_body');
 
-    const tmp = `${chunkFileOf(id, index)}.${process.pid}.${Date.now()}.part`;
-    const got = await saveBodyToFile(req.body, tmp, expected);
+    const got = await putChunk(id, index, req.body, expected);
     if (got !== expected) {
-      await fsp.rm(tmp, { force: true }).catch(() => {});
       return fail(400, 'size_mismatch', { expected, got });
     }
-    await fsp.rename(tmp, chunkFileOf(id, index));
     return json({ ok: true, index });
   } catch (err) {
     if (err && err.code === 'chunk_too_large') return fail(413, 'chunk_too_large');

@@ -1,4 +1,3 @@
-import fsp from 'fs/promises';
 import { CHUNK_SIZE, MAX_BYTES, PENDING_TTL_MS } from '@/lib/server/config';
 import {
   fail,
@@ -14,8 +13,7 @@ import {
   sanitizeName,
 } from '@/lib/server/util';
 import {
-  ensureDirs,
-  fileDirOf,
+  prepareUploadDir,
   readMeta,
   sweepPending,
   writeMeta,
@@ -46,7 +44,6 @@ export async function POST(req) {
     const password = body.password ? String(body.password).slice(0, 128) : '';
     const chunkCount = Math.ceil(size / CHUNK_SIZE);
 
-    await ensureDirs();
     let id = null;
     for (let i = 0; i < 6; i += 1) {
       const candidate = newId(12);
@@ -80,7 +77,7 @@ export async function POST(req) {
       meta.passwordHash = hash;
     }
 
-    await fsp.mkdir(fileDirOf(id), { recursive: true });
+    await prepareUploadDir(id);
     await writeMeta(meta);
     sweepPending(PENDING_TTL_MS).catch(() => {});
 

@@ -126,16 +126,22 @@ docker run -p 3000:3000 -v sendr-data:/data sendr
 
 Put Caddy or nginx in front for HTTPS, done.
 
-### Vercel (demo only)
+### Vercel
 
-The site deploys as-is and Sendr detects Vercel automatically: data goes to `/tmp`,
-chunks shrink to 4 MiB, and missing-upload errors carry a plain explanation.
+The site deploys as-is. Sendr detects Vercel automatically and switches its storage
+engine to **Vercel Blob** (Vercel's own storage product - still zero services outside
+the Vercel platform). One-time setup in your Vercel dashboard:
 
-Know the platform's rules: each serverless instance has its own private `/tmp`, and
-requests are load-balanced across instances, so multi-chunk uploads will fail with
-`not_found` whenever chunks land on a different instance than `init`. That is a platform
-limit, not a code limit. If you want Sendr links to truly last forever, run it on any
-machine/VPS with a disk (commands above) - same code, zero changes.
+1. Open your project -> **Storage** tab -> **Create Database/Blob Store** (Vercel Blob).
+2. Connect it to the project. This injects `BLOB_READ_WRITE_TOKEN` automatically.
+3. Redeploy. Done - uploads now survive across instances and links stay live.
+
+Without a Blob store connected, Sendr falls back to per-instance `/tmp`, where
+multi-chunk uploads fail (`not_found`) because serverless instances do not share
+storage. The client shows a plain explanation in that case.
+
+Capacity is whatever your Vercel plan includes for Blob (small on Hobby, larger on
+Pro). For unlimited capacity at disk cost, self-host with the commands above.
 
 ## Security notes
 
