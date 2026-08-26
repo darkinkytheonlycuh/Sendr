@@ -134,7 +134,9 @@ export function DownloadView({ meta: initialMeta }) {
 
   return (
     <div className="container dl-page">
-      <div className="dl-label fade-up-anim">Someone sent you a file</div>
+        <div className="dl-label fade-up-anim">
+          {meta.sender ? `${meta.sender} sent you a file` : 'Someone sent you a file'}
+        </div>
       <div className="panel dl-card">
         <div className="big-icon">
           <FileTypeIcon category={category} size={38} />
@@ -215,7 +217,7 @@ export function PendingGate({ initial }) {
         const res = await jfetch(`/api/files/${initial.id}`);
         if (res.meta.status === 'ready') setStatus('ready');
       } catch {}
-    }, 3500);
+    }, 1500);
     return () => clearInterval(t);
   }, [initial.id, status]);
 

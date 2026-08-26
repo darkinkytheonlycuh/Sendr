@@ -697,6 +697,15 @@ button {
   gap: 12px;
   flex-wrap: wrap;
 }
+.identity-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+.id-input {
+  width: 210px;
+  text-align: center;
+}
 .lock-toggle {
   display: inline-flex;
   align-items: center;

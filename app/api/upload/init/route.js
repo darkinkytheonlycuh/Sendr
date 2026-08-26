@@ -11,10 +11,12 @@ import {
   rateLimit,
   readJson,
   sanitizeName,
+  sanitizeUserName,
 } from '@/lib/server/util';
 import {
   prepareUploadDir,
   readMeta,
+  readUser,
   sweepPending,
   writeMeta,
 } from '@/lib/server/store';
@@ -44,6 +46,18 @@ export async function POST(req) {
     const password = body.password ? String(body.password).slice(0, 128) : '';
     const chunkCount = Math.ceil(size / CHUNK_SIZE);
 
+    let senderName = '';
+    if (body.sender && typeof body.sender === 'object') {
+      const display = sanitizeUserName(body.sender.name);
+      if (!display) return fail(403, 'bad_identity');
+      const rec = await readUser(display.toLowerCase());
+      if (!rec || rec.name !== display) return fail(403, 'bad_identity');
+      if (!body.sender.secret || hashToken(String(body.sender.secret)) !== rec.secretHash) {
+        return fail(403, 'bad_identity');
+      }
+      senderName = rec.name;
+    }
+
     let id = null;
     for (let i = 0; i < 6; i += 1) {
       const candidate = newId(12);
@@ -69,6 +83,7 @@ export async function POST(req) {
       createdAt: Date.now(),
       completedAt: null,
       downloads: 0,
+      sender: senderName,
       deleteTokenHash: hashToken(token),
     };
     if (password) {

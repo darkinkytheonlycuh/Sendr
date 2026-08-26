@@ -55,6 +55,9 @@ export default function Uploader() {
   const [sessions, setSessions] = useState([]);
   const [copied, setCopied] = useState('');
   const [maxBytes, setMaxBytes] = useState(FALLBACK_MAX);
+  const [identity, setIdentity] = useState(null);
+  const [nameInput, setNameInput] = useState('');
+  const [claimBusy, setClaimBusy] = useState(false);
 
   const bump = useCallback(() => setTick((t) => t + 1), []);
 
@@ -75,6 +78,19 @@ export default function Uploader() {
         if (d && d.ok && d.maxBytes) setMaxBytes(d.maxBytes);
       })
       .catch(() => {});
+    try {
+      const saved = JSON.parse(localStorage.getItem('sendr:v1:id') || 'null');
+      if (saved && saved.name && saved.secret) {
+        setIdentity(saved);
+        jfetch('/api/users', {
+          method: 'POST',
+          body: JSON.stringify({ action: 'verify', name: saved.name, secret: saved.secret }),
+        }).catch(() => {
+          localStorage.removeItem('sendr:v1:id');
+          setIdentity(null);
+        });
+      }
+    } catch {}
     return () => manager.dispose();
   }, [bump]);
 
@@ -101,7 +117,7 @@ export default function Uploader() {
           toast.push(`"${pair.path || file.name}" is empty`, 'err');
           continue;
         }
-        manager.add(file, lockOn ? password : '', pair.path || '');
+        manager.add(file, lockOn ? password : '', pair.path || '', identity);
         queuedCount += 1;
       }
       if (queuedCount > 0) {
@@ -111,7 +127,7 @@ export default function Uploader() {
         );
       }
     },
-    [maxBytes, lockOn, password, toast]
+    [maxBytes, lockOn, password, identity, toast]
   );
 
   useEffect(() => {
@@ -228,6 +244,32 @@ export default function Uploader() {
     }
   };
 
+  const claimName = async () => {
+    if (claimBusy) return;
+    setClaimBusy(true);
+    try {
+      const res = await jfetch('/api/users', {
+        method: 'POST',
+        body: JSON.stringify({ action: 'claim', name: nameInput }),
+      });
+      const rec = { name: res.name, secret: res.secret };
+      localStorage.setItem('sendr:v1:id', JSON.stringify(rec));
+      setIdentity(rec);
+      setNameInput('');
+      toast.push(`"${res.name}" is yours — uploads now show it to receivers`, 'ok');
+    } catch (err) {
+      toast.push(err.message || 'Could not claim that name', 'err');
+    } finally {
+      setClaimBusy(false);
+    }
+  };
+
+  const forgetName = () => {
+    localStorage.removeItem('sendr:v1:id');
+    setIdentity(null);
+    toast.push('Sending as anonymous again', 'info');
+  };
+
   const manager = managerRef.current;
   const items = manager ? manager.items : [];
   const gbLabel = Math.floor(maxBytes / 1024 ** 3);
@@ -306,6 +348,36 @@ export default function Uploader() {
           </div>
           <div className="dz-meta">
             ANY FORMAT · UP TO {gbLabel} GB EACH · FOLDERS WELCOME · LINKS NEVER EXPIRE
+          </div>
+          <div className="lock-row" onClick={(e) => e.stopPropagation()}>
+            {identity ? (
+              <div className="identity-row">
+                <Chip tone="chip-ok">Sending as {identity.name}</Chip>
+                <button className="lock-toggle" onClick={forgetName}>
+                  Change
+                </button>
+              </div>
+            ) : (
+              <div className="identity-row">
+                <input
+                  className="input id-input"
+                  placeholder="Your name (optional)"
+                  value={nameInput}
+                  maxLength={24}
+                  onChange={(e) => setNameInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && nameInput.trim()) claimName();
+                  }}
+                />
+                <button
+                  className={`lock-toggle ${nameInput.trim() ? 'on' : ''}`.trim()}
+                  disabled={claimBusy || !nameInput.trim()}
+                  onClick={claimName}
+                >
+                  Claim name
+                </button>
+              </div>
+            )}
           </div>
           <div className="lock-row" onClick={(e) => e.stopPropagation()}>
             <button className="lock-toggle" onClick={() => folderInputRef.current?.click()}>
