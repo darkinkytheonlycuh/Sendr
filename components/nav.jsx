@@ -18,7 +18,7 @@ export default function Nav() {
           <span className="logo-mark">
             <LogoMark />
           </span>
-          <span className="wordmark">SENDR</span>
+          <span className="wordmark">Sendr</span>
         </Link>
         <nav className="nav-links" aria-label="Primary">
           {LINKS.map((l) => (
