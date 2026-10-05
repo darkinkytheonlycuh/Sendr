@@ -56,6 +56,7 @@ export default function Uploader() {
   const [copied, setCopied] = useState('');
   const [maxBytes, setMaxBytes] = useState(FALLBACK_MAX);
   const [identity, setIdentity] = useState(null);
+  const [identityVerified, setIdentityVerified] = useState(false);
   const [nameInput, setNameInput] = useState('');
   const [claimBusy, setClaimBusy] = useState(false);
 
@@ -69,6 +70,13 @@ export default function Uploader() {
         if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
           import('./fx').then(({ burstConfetti }) => burstConfetti());
         }
+      },
+      identityRejected: () => {
+        try {
+          localStorage.removeItem('sendr:v1:id');
+        } catch {}
+        setIdentity(null);
+        setIdentityVerified(false);
       },
     });
     managerRef.current = manager;
@@ -85,10 +93,13 @@ export default function Uploader() {
         jfetch('/api/users', {
           method: 'POST',
           body: JSON.stringify({ action: 'verify', name: saved.name, secret: saved.secret }),
-        }).catch(() => {
-          localStorage.removeItem('sendr:v1:id');
-          setIdentity(null);
-        });
+        })
+          .then(() => setIdentityVerified(true))
+          .catch(() => {
+            localStorage.removeItem('sendr:v1:id');
+            setIdentity(null);
+            setIdentityVerified(false);
+          });
       }
     } catch {}
     return () => manager.dispose();
@@ -117,7 +128,7 @@ export default function Uploader() {
           toast.push(`"${pair.path || file.name}" is empty`, 'err');
           continue;
         }
-        manager.add(file, lockOn ? password : '', pair.path || '', identity);
+        manager.add(file, lockOn ? password : '', pair.path || '', identityVerified ? identity : null);
         queuedCount += 1;
       }
       if (queuedCount > 0) {
@@ -127,7 +138,7 @@ export default function Uploader() {
         );
       }
     },
-    [maxBytes, lockOn, password, identity, toast]
+    [maxBytes, lockOn, password, identity, identityVerified, toast]
   );
 
   useEffect(() => {
@@ -255,6 +266,7 @@ export default function Uploader() {
       const rec = { name: res.name, secret: res.secret };
       localStorage.setItem('sendr:v1:id', JSON.stringify(rec));
       setIdentity(rec);
+      setIdentityVerified(true);
       setNameInput('');
       toast.push(`"${res.name}" is yours — uploads now show it to receivers`, 'ok');
     } catch (err) {
@@ -267,6 +279,7 @@ export default function Uploader() {
   const forgetName = () => {
     localStorage.removeItem('sendr:v1:id');
     setIdentity(null);
+    setIdentityVerified(false);
     toast.push('Sending as anonymous again', 'info');
   };
 
@@ -350,7 +363,7 @@ export default function Uploader() {
             ANY FORMAT · UP TO {gbLabel} GB EACH · FOLDERS WELCOME · LINKS NEVER EXPIRE
           </div>
           <div className="lock-row" onClick={(e) => e.stopPropagation()}>
-            {identity ? (
+            {identity && identityVerified ? (
               <div className="identity-row">
                 <Chip tone="chip-ok">Sending as {identity.name}</Chip>
                 <button className="lock-toggle" onClick={forgetName}>
