@@ -14,6 +14,51 @@ import {
 import { useToast } from './toast';
 import { Btn, Chip, FileTypeIcon, IconCopy, IconDownload, IconExternal, IconLock, IconShare } from './ui';
 
+const enc = typeof window !== 'undefined' && window.crypto && window.crypto.subtle;
+
+function hexToBuf(hex) {
+  const bytes = new Uint8Array(hex.length / 2);
+  for (let i = 0; i < bytes.length; i += 1) {
+    bytes[i] = parseInt(hex.substr(i * 2, 2), 16);
+  }
+  return bytes.buffer;
+}
+
+function base64ToBuf(b64) {
+  const binary = atob(b64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i += 1) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return bytes.buffer;
+}
+
+async function deriveKeyFromPassword(password, saltHex) {
+  if (!password || !enc || !saltHex) return null;
+  try {
+    const encPass = new TextEncoder().encode(password);
+    const salt = hexToBuf(saltHex);
+    const keyMaterial = await crypto.subtle.importKey('raw', encPass, 'PBKDF2', false, [
+      'deriveKey',
+    ]);
+    const key = await crypto.subtle.deriveKey(
+      {
+        name: 'PBKDF2',
+        salt,
+        iterations: 200000,
+        hash: 'SHA-256',
+      },
+      keyMaterial,
+      { name: 'AES-GCM', length: 256 },
+      false,
+      ['decrypt']
+    );
+    return key;
+  } catch {
+    return null;
+  }
+}
+
 function usePwQuery(meta, unlocked) {
   return useMemo(() => {
     if (!meta.protected || !unlocked) return '';
@@ -70,7 +115,7 @@ export function DownloadView({ meta: initialMeta }) {
     if (gateBusy || !pwInput) return;
     setGateBusy(true);
     try {
-      await jfetch(`/api/files/${meta.id}/unlock`, {
+      const res = await jfetch(`/api/files/${meta.id}/unlock`, {
         method: 'POST',
         body: JSON.stringify({ password: pwInput }),
       });

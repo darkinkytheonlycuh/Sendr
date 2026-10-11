@@ -17,6 +17,9 @@ export const dynamic = 'force-dynamic';
 export async function GET(req, { params }) {
   try {
     if (!isValidId(params.id)) return fail(400, 'bad_request');
+    if (!rateLimit(`meta:${getIp(req)}`, 60, 60000)) {
+      return fail(429, 'slow_down');
+    }
     let meta;
     try {
       meta = await readMeta(params.id);
@@ -26,7 +29,10 @@ export async function GET(req, { params }) {
       }
       throw err;
     }
-    return json({ ok: true, meta: publicMeta(meta) });
+    const out = publicMeta(meta);
+    if (meta.enc) out.enc = meta.enc;
+    if (meta.passwordSalt) out.passwordSalt = meta.passwordSalt;
+    return json({ ok: true, meta: out });
   } catch (err) {
     return handleError(err);
   }

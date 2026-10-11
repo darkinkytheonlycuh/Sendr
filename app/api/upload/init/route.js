@@ -12,6 +12,7 @@ import {
   readJson,
   sanitizeName,
   sanitizeUserName,
+  generateEncryptionMeta,
 } from '@/lib/server/util';
 import {
   prepareUploadDir,
@@ -72,7 +73,7 @@ export async function POST(req) {
 
     const token = newToken();
     const meta = {
-      v: 1,
+      v: 2,
       id,
       name,
       size,
@@ -90,13 +91,16 @@ export async function POST(req) {
       const { salt, hash } = hashPassword(password);
       meta.passwordSalt = salt;
       meta.passwordHash = hash;
+      meta.enc = generateEncryptionMeta();
+    } else {
+      meta.enc = null;
     }
 
     await prepareUploadDir(id);
     await writeMeta(meta);
     sweepPending(PENDING_TTL_MS).catch(() => {});
 
-    return json({ ok: true, id, token, chunkSize: CHUNK_SIZE, chunkCount });
+    return json({ ok: true, id, token, chunkSize: CHUNK_SIZE, chunkCount, meta });
   } catch (err) {
     return handleError(err);
   }

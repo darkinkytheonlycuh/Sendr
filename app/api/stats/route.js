@@ -1,13 +1,16 @@
 import { listMetaIds, readMeta, sweepPending } from '@/lib/server/store';
-import { handleError, json } from '@/lib/server/util';
+import { fail, getIp, handleError, json, rateLimit } from '@/lib/server/util';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 let cache = { t: 0, data: null };
 
-export async function GET() {
+export async function GET(req) {
   try {
+    if (!rateLimit(`stats:${getIp(req)}`, 30, 60000)) {
+      return fail(429, 'slow_down');
+    }
     const now = Date.now();
     if (cache.data && now - cache.t < 10000) return json(cache.data);
 
