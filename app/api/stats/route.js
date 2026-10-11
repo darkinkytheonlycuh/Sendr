@@ -39,6 +39,7 @@ export async function GET(req) {
       pending,
       generatedAt: now,
     };
+    delete data.downloads;
     cache = { t: now, data };
     sweepPending().catch(() => {});
     return json(data);

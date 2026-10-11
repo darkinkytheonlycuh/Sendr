@@ -115,7 +115,6 @@ export default function Vault() {
                     <div className="v-name">{entry.name}</div>
                     <div className="v-sub">
                       {fmtBytes(entry.size)} · {fmtDate(entry.date)}
-                      {meta && meta.downloads !== undefined && ` · ${meta.downloads} download${meta.downloads === 1 ? '' : 's'}`}
                       {gone && ' · no longer on server'}
                     </div>
                   </div>

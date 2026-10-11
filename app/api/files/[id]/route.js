@@ -30,8 +30,17 @@ export async function GET(req, { params }) {
       throw err;
     }
     const out = publicMeta(meta);
-    if (meta.enc) out.enc = meta.enc;
-    if (meta.passwordSalt) out.passwordSalt = meta.passwordSalt;
+    delete out.chunkCount;
+    delete out.chunkSize;
+    delete out.downloads;
+    delete out.sender;
+    if (meta.passwordHash) {
+      if (meta.enc) out.enc = meta.enc;
+      if (meta.passwordSalt) out.passwordSalt = meta.passwordSalt;
+    }
+    if (meta.v === 2) {
+      delete out.protected;
+    }
     return json({ ok: true, meta: out });
   } catch (err) {
     return handleError(err);

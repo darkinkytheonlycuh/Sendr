@@ -128,7 +128,6 @@ export function Features() {
 const STAT_FORMAT = {
   files: (v) => v.toLocaleString(),
   bytes: (v) => fmtBytes(v),
-  downloads: (v) => v.toLocaleString(),
 };
 
 export function StatsBand() {
@@ -150,7 +149,7 @@ export function StatsBand() {
   const items = [
     { label: 'Files shared', value: stats ? stats.files : 0, format: STAT_FORMAT.files },
     { label: 'Stored on disk', value: stats ? stats.bytes : 0, format: STAT_FORMAT.bytes },
-    { label: 'Downloads served', value: stats ? stats.downloads : 0, format: STAT_FORMAT.downloads },
+
     { label: 'Link expiry', value: null },
   ];
 

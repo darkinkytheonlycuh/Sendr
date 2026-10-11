@@ -170,9 +170,7 @@ export function DownloadView({ meta: initialMeta }) {
       <Chip>{fmtBytes(meta.size)}</Chip>
       <Chip>{meta.type}</Chip>
       <Chip>Uploaded {fmtDate(meta.completedAt || meta.createdAt)}</Chip>
-      <Chip>
-        {meta.downloads} download{meta.downloads === 1 ? '' : 's'}
-      </Chip>
+
       <Chip tone="forever-chip">∞ Never expires</Chip>
     </div>
   );
