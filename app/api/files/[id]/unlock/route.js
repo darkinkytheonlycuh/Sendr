@@ -36,7 +36,6 @@ export async function POST(req, { params }) {
     }
     const out = { ok: true };
     if (meta.enc) out.enc = meta.enc;
-    if (meta.passwordSalt) out.passwordSalt = meta.passwordSalt;
     return json(out);
   } catch (err) {
     return handleError(err);

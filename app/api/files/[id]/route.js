@@ -36,7 +36,6 @@ export async function GET(req, { params }) {
     delete out.sender;
     if (meta.passwordHash) {
       if (meta.enc) out.enc = meta.enc;
-      if (meta.passwordSalt) out.passwordSalt = meta.passwordSalt;
     }
     if (meta.v === 2) {
       delete out.protected;
