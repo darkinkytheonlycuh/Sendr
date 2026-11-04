@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Counter, Reveal, Tilt } from './fx';
+import { Counter, Reveal, SplitWords, Tilt } from './fx';
 import { Btn, IconArrowDown } from './ui';
 import { fmtBytes } from '@/lib/format';
 
@@ -79,19 +79,21 @@ export function Hero() {
           <span className="dot-live" /> Self-hosted file transfer · v1.0
         </span>
         <h1 className="display">
-          Send anything.
+          <SplitWords text="Send anything." delay={120} />
           <br />
-          <span className="grad-text">Keep it forever.</span>
+          <span className="grad-text">
+            <SplitWords text="Keep it forever." delay={260} />
+          </span>
         </h1>
         <p className="hero-sub">
           Drag in any file up to 1&nbsp;TB and get a link that never expires.
           No accounts. No tracking. No expiry dates. Your storage, your rules.
         </p>
         <div className="cta-row">
-          <Btn size="btn-lg" onClick={() => document.getElementById('send')?.scrollIntoView({ behavior: 'smooth' })}>
+          <Btn size="btn-lg" className="magnetic" onClick={() => document.getElementById('send')?.scrollIntoView({ behavior: 'smooth' })}>
             Start sending <IconArrowDown />
           </Btn>
-          <Btn variant="ghost" size="btn-lg" onClick={() => document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' })}>
+          <Btn variant="ghost" size="btn-lg" className="magnetic" onClick={() => document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' })}>
             How it works
           </Btn>
         </div>

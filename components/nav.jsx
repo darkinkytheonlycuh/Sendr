@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { LogoMark } from './ui';
 
@@ -11,8 +12,25 @@ const LINKS = [
 ];
 
 export default function Nav() {
+  const [scrolled, setScrolled] = useState(false);
+  useEffect(() => {
+    let raf = 0;
+    const onScroll = () => {
+      if (raf) return;
+      raf = requestAnimationFrame(() => {
+        raf = 0;
+        setScrolled(window.scrollY > 12);
+      });
+    };
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener('scroll', onScroll);
+    };
+  }, []);
   return (
-    <header className="nav">
+    <header className={`nav ${scrolled ? 'scrolled' : ''}`.trim()}>
       <div className="container nav-inner">
         <Link href="/" className="logo" aria-label="Sendr home">
           <span className="logo-mark">
@@ -26,7 +44,7 @@ export default function Nav() {
               {l.label}
             </Link>
           ))}
-          <Link href="/#send" className="btn btn-primary btn-sm">
+          <Link href="/#send" className="btn btn-primary btn-sm magnetic">
             Upload
           </Link>
         </nav>

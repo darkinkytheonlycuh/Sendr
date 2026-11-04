@@ -1,7 +1,7 @@
 import './globals.css';
 import Nav from '@/components/nav';
 import Footer from '@/components/footer';
-import ParticleField from '@/components/fx';
+import ParticleField, { PointerFx } from '@/components/fx';
 import { ToastProvider } from '@/components/toast';
 
 export const metadata = {
@@ -44,6 +44,7 @@ export default function RootLayout({ children }) {
           <div className="grid-overlay" />
         </div>
         <ParticleField />
+        <PointerFx />
         <ToastProvider>
           <div className="page-shell">
             <Nav />
