@@ -1,4 +1,4 @@
-import { CHUNK_SIZE, MAX_BYTES, PENDING_TTL_MS } from '@/lib/server/config';
+import { MAX_BYTES, MAX_CHUNKS, PENDING_TTL_MS, chunkSizeFor } from '@/lib/server/config';
 import {
   fail,
   getIp,
@@ -12,10 +12,10 @@ import {
   readJson,
   sanitizeName,
   sanitizeUserName,
-  generateEncryptionMeta,
 } from '@/lib/server/util';
 import {
   prepareUploadDir,
+  publicMeta,
   readMeta,
   readUser,
   sweepPending,
@@ -29,6 +29,9 @@ export async function POST(req) {
   try {
     if (!rateLimit(`init:${getIp(req)}`, 30, 60000)) return fail(429, 'slow_down');
     const body = await readJson(req);
+    if (body.acceptTerms !== true) {
+      return fail(400, 'terms_required', 'You must accept the Terms of Service to upload');
+    }
     const name = sanitizeName(body.name);
     if (!name) return fail(400, 'bad_name');
     const size = Number(body.size);
@@ -37,7 +40,7 @@ export async function POST(req) {
       return fail(
         413,
         'too_large',
-        `Files can be at most ${Math.floor(MAX_BYTES / 1024 ** 3)} GB`
+        `Files can be at most ${Math.floor(MAX_BYTES / 1024 ** 3).toLocaleString('en-US')} GB`
       );
     }
     const type =
@@ -45,7 +48,9 @@ export async function POST(req) {
         ? body.type.slice(0, 120)
         : 'application/octet-stream';
     const password = body.password ? String(body.password).slice(0, 128) : '';
-    const chunkCount = Math.ceil(size / CHUNK_SIZE);
+    const chunkSize = chunkSizeFor(size);
+    const chunkCount = Math.ceil(size / chunkSize);
+    if (chunkCount > MAX_CHUNKS) return fail(413, 'too_large');
 
     let senderName = '';
     if (body.sender && typeof body.sender === 'object') {
@@ -78,7 +83,7 @@ export async function POST(req) {
       name,
       size,
       type,
-      chunkSize: CHUNK_SIZE,
+      chunkSize,
       chunkCount,
       status: 'pending',
       createdAt: Date.now(),
@@ -86,21 +91,19 @@ export async function POST(req) {
       downloads: 0,
       sender: senderName,
       deleteTokenHash: hashToken(token),
+      termsAcceptedAt: Date.now(),
     };
     if (password) {
       const { salt, hash } = hashPassword(password);
       meta.passwordSalt = salt;
       meta.passwordHash = hash;
-      meta.enc = generateEncryptionMeta();
-    } else {
-      meta.enc = null;
     }
 
     await prepareUploadDir(id);
     await writeMeta(meta);
     sweepPending(PENDING_TTL_MS).catch(() => {});
 
-    return json({ ok: true, id, token, chunkSize: CHUNK_SIZE, chunkCount, meta });
+    return json({ ok: true, id, token, chunkSize, chunkCount, meta: publicMeta(meta) });
   } catch (err) {
     return handleError(err);
   }

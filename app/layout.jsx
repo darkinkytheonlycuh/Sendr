@@ -6,11 +6,11 @@ import { ToastProvider } from '@/components/toast';
 
 export const metadata = {
   title: {
-    default: 'Sendr ON TOP.',
-    template: '%s Sendr',
+    default: 'Sendr: forever file sharing',
+    template: '%s · Sendr',
   },
   description:
-    'Forever file sharing. Drop any file up to 50 GB, get a link that never expires. No accounts, no tracking, custom storage engine.',
+    'Forever file sharing. Drop any file up to 1 TB, get a link that never expires. No accounts, no tracking, custom storage engine.',
   applicationName: 'Sendr',
   keywords: [
     'file sharing',
@@ -20,9 +20,9 @@ export const metadata = {
     'no account file upload',
   ],
   openGraph: {
-    title: 'Sendr ON TOP.',
+    title: 'Sendr: forever file sharing',
     description:
-      'Drop any file up to 200gb GB and get a link that never expires. No account or signup required, here we value your time, we try and make this worth while and worth it, start today.',
+      'Drop any file up to 1 TB and get a link that never expires. No account or signup required.',
     type: 'website',
   },
 };

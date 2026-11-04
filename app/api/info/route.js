@@ -1,4 +1,4 @@
-import { CHUNK_SIZE, MAX_BYTES } from '@/lib/server/config';
+import { CHUNK_SIZE, MAX_BYTES, isVercel } from '@/lib/server/config';
 import { blobMode, r2Mode } from '@/lib/server/store';
 import { fail, getIp, handleError, json, rateLimit } from '@/lib/server/util';
 
@@ -15,6 +15,8 @@ export async function GET(req) {
       maxBytes: MAX_BYTES,
       chunkSize: CHUNK_SIZE,
       storage: r2Mode ? 'r2' : blobMode ? 'blob' : 'local',
+      // Local disk on Vercel is per-instance /tmp: files vanish, so links cannot last.
+      persistent: Boolean(r2Mode || blobMode || !isVercel),
     });
   } catch (err) {
     return handleError(err);

@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
 import {
   ST,
   UploadManager,
@@ -28,7 +29,13 @@ import {
   Spinner,
 } from './ui';
 
-const FALLBACK_MAX = 200 * 1024 ** 3;
+const FALLBACK_MAX = 1024 ** 4;
+const TERMS_KEY = 'sendr:v1:terms';
+
+function fmtLimit(bytes) {
+  if (bytes >= 1024 ** 4) return `${+(bytes / 1024 ** 4).toFixed(1)} TB`;
+  return `${Math.floor(bytes / 1024 ** 3)} GB`;
+}
 
 const STATUS_CHIP = {
   [ST.queued]: { label: 'Queued', tone: '' },
@@ -55,6 +62,8 @@ export default function Uploader() {
   const [sessions, setSessions] = useState([]);
   const [copied, setCopied] = useState('');
   const [maxBytes, setMaxBytes] = useState(FALLBACK_MAX);
+  const [persistent, setPersistent] = useState(true);
+  const [agreed, setAgreed] = useState(false);
   const [identity, setIdentity] = useState(null);
   const [identityVerified, setIdentityVerified] = useState(false);
   const [nameInput, setNameInput] = useState('');
@@ -84,8 +93,12 @@ export default function Uploader() {
     jfetch('/api/info')
       .then((d) => {
         if (d && d.ok && d.maxBytes) setMaxBytes(d.maxBytes);
+        if (d && d.ok && d.persistent === false) setPersistent(false);
       })
       .catch(() => {});
+    try {
+      if (localStorage.getItem(TERMS_KEY) === '1') setAgreed(true);
+    } catch {}
     try {
       const saved = JSON.parse(localStorage.getItem('sendr:v1:id') || 'null');
       if (saved && saved.name && saved.secret) {
@@ -111,15 +124,17 @@ export default function Uploader() {
     (pairs) => {
       const manager = managerRef.current;
       if (!manager || !pairs || !pairs.length) return;
+      if (!agreed) {
+        toast.push('Tick the box to accept the Terms before uploading', 'err');
+        return;
+      }
       let queuedCount = 0;
       for (const pair of pairs) {
         const file = pair.file;
         if (!file) continue;
         if (file.size > maxBytes) {
           toast.push(
-            `"${pair.path || file.name}" is over the ${Math.floor(
-              maxBytes / 1024 ** 3
-            )} GB limit`,
+            `"${pair.path || file.name}" is over the ${fmtLimit(maxBytes)} limit`,
             'err'
           );
           continue;
@@ -138,7 +153,7 @@ export default function Uploader() {
         );
       }
     },
-    [maxBytes, lockOn, password, identity, identityVerified, toast]
+    [maxBytes, agreed, lockOn, password, identity, identityVerified, toast]
   );
 
   useEffect(() => {
@@ -285,10 +300,17 @@ export default function Uploader() {
 
   const manager = managerRef.current;
   const items = manager ? manager.items : [];
-  const gbLabel = Math.floor(maxBytes / 1024 ** 3);
+  const limitLabel = fmtLimit(maxBytes);
 
   return (
     <div className="uploader-panel panel" id="send">
+      {!persistent && (
+        <div className="storage-warn" role="alert">
+          This server has no permanent storage connected, so uploads will not survive and links
+          will break. The site owner needs to connect Vercel Blob or Cloudflare R2, or self-host
+          with a real disk.
+        </div>
+      )}
       {sessions.length > 0 && (
         <div className="sessions">
           {sessions.map((rec) => (
@@ -344,9 +366,12 @@ export default function Uploader() {
         role="button"
         tabIndex={0}
         aria-label="Drop files or folders, or click to browse"
-        onClick={() => fileInputRef.current?.click()}
+        onClick={() => {
+          if (!agreed) toast.push('Tick the box to accept the Terms before uploading', 'err');
+          else fileInputRef.current?.click();
+        }}
         onKeyDown={(e) => {
-          if (e.key === 'Enter' || e.key === ' ') fileInputRef.current?.click();
+          if ((e.key === 'Enter' || e.key === ' ') && agreed) fileInputRef.current?.click();
         }}
       >
         <div className="dz-body">
@@ -360,7 +385,7 @@ export default function Uploader() {
             <span className="kbd">Ctrl</span>+<span className="kbd">V</span>
           </div>
           <div className="dz-meta">
-            ANY FORMAT · UP TO {gbLabel} GB EACH · FOLDERS WELCOME · LINKS NEVER EXPIRE
+            ANY FORMAT · UP TO {limitLabel} EACH · FOLDERS WELCOME · LINKS NEVER EXPIRE
           </div>
           <div className="lock-row" onClick={(e) => e.stopPropagation()}>
             {identity && identityVerified ? (
@@ -392,6 +417,22 @@ export default function Uploader() {
               </div>
             )}
           </div>
+          <label className="terms-row" onClick={(e) => e.stopPropagation()}>
+            <input
+              type="checkbox"
+              checked={agreed}
+              onChange={(e) => {
+                setAgreed(e.target.checked);
+                try {
+                  localStorage.setItem(TERMS_KEY, e.target.checked ? '1' : '0');
+                } catch {}
+              }}
+            />
+            <span>
+              I own these files or have the right to share them, and I accept the{' '}
+              <Link href="/terms" target="_blank">Terms</Link>. No pirated or illegal content.
+            </span>
+          </label>
           <div className="lock-row" onClick={(e) => e.stopPropagation()}>
             <button className="lock-toggle" onClick={() => folderInputRef.current?.click()}>
               <IconFolder /> Pick a folder

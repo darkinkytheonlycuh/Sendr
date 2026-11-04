@@ -9,16 +9,12 @@ export default function Footer() {
           SENDR © {new Date().getFullYear()} — your files, your links,{' '}
           <b style={{ color: 'var(--tx-2)' }}>forever</b>.
         </span>
-        <span>
-          No accounts · No trackers · Built custom with{' '}
-          <span className="heart" aria-hidden="true">
-            ♥
-          </span>{' '}
-          and zero third-party services.{' '}
-          <Link href="/#faq" style={{ color: 'var(--tx-2)', textDecoration: 'underline', textUnderlineOffset: 3 }}>
-            How?
-          </Link>
-        </span>
+        <nav className="footer-links" aria-label="Legal">
+          <Link href="/terms">Terms</Link>
+          <Link href="/privacy">Privacy</Link>
+          <Link href="/copyright">Copyright &amp; DMCA</Link>
+          <Link href="/report">Report a file</Link>
+        </nav>
       </div>
     </footer>
   );

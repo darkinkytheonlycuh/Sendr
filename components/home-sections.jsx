@@ -16,7 +16,7 @@ const FEATURES = [
     ),
   },
   {
-    title: 'Up to 200 GB per file',
+    title: 'Up to 1 TB per file',
     text: 'Custom chunked-transfer engine slices huge files into pieces and streams them up with retries baked in.',
     icon: (
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
@@ -84,7 +84,7 @@ export function Hero() {
           <span className="grad-text">Keep it forever.</span>
         </h1>
         <p className="hero-sub">
-          Drag in any file up to 200&nbsp;GB and get a link that never expires.
+          Drag in any file up to 1&nbsp;TB and get a link that never expires.
           No accounts. No tracking. No expiry dates. Your storage, your rules.
         </p>
         <div className="cta-row">
@@ -180,15 +180,15 @@ export function StatsBand() {
 const FAQ_ITEMS = [
   {
     q: 'Links really last forever?',
-    a: 'Yes. Nothing expires on its own — no 7-day timers, no purge jobs. Files only disappear if you delete them from your vault.',
+    a: 'Yes. Nothing expires on its own — no 7-day timers, no purge jobs. Files only disappear if you delete them from your vault, or if they are removed for breaking the Terms (for example, a valid copyright complaint).',
   },
   {
     q: 'How big can my files be?',
-    a: 'Up to 200 GB each, unlimited number of files. Big files are split into chunks by the custom transfer engine and stitched back together on the fly when someone downloads.',
+    a: 'Up to 1 TB each, unlimited number of files. Big files are split into chunks by the custom transfer engine and stitched back together on the fly when someone downloads.',
   },
   {
     q: 'Are my files private?',
-    a: 'Links use unguessable random IDs, and you can add a password on top. Risky formats are forced to download instead of executing in the browser, and nothing about you is logged — there are no accounts at all.',
+    a: 'Links use unguessable random IDs, and you can add a password on top. Risky formats are forced to download instead of executing in the browser, and there are no accounts or trackers. Password protection gates downloads; files are not end-to-end encrypted.',
   },
   {
     q: 'Can I delete something later?',

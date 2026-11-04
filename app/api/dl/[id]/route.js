@@ -44,6 +44,9 @@ export async function GET(req, { params }) {
       }
       throw err;
     }
+    if (meta.status === 'removed') {
+      return fail(451, 'removed', 'This file was removed after a legal or policy complaint');
+    }
     if (meta.status !== 'ready') return fail(409, 'not_ready');
 
     const url = new URL(req.url);

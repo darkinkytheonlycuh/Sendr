@@ -105,7 +105,8 @@ export default function Vault() {
           <div className="vault-list">
             {entries.map((entry, i) => {
               const meta = info[entry.id];
-              const gone = meta && meta.status === 'gone';
+              const removed = meta && meta.status === 'removed';
+              const gone = meta && (meta.status === 'gone' || removed);
               return (
                 <div className="v-item" key={entry.id} style={{ animationDelay: `${i * 45}ms` }}>
                   <span className="fc-icon" style={{ width: 38, height: 38, borderRadius: 11, marginBottom: 0 }}>
@@ -115,7 +116,7 @@ export default function Vault() {
                     <div className="v-name">{entry.name}</div>
                     <div className="v-sub">
                       {fmtBytes(entry.size)} · {fmtDate(entry.date)}
-                      {gone && ' · no longer on server'}
+                      {gone && (removed ? ' · removed after a complaint' : ' · no longer on server')}
                     </div>
                   </div>
                   {meta && meta.protected && <Chip tone="chip-warn">Locked</Chip>}

@@ -34,12 +34,6 @@ export async function GET(req, { params }) {
     delete out.chunkSize;
     delete out.downloads;
     delete out.sender;
-    if (meta.passwordHash) {
-      if (meta.enc) out.enc = meta.enc;
-    }
-    if (meta.v === 2) {
-      delete out.protected;
-    }
     return json({ ok: true, meta: out });
   } catch (err) {
     return handleError(err);

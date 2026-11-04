@@ -34,9 +34,7 @@ export async function POST(req, { params }) {
       await sleep(250);
       return fail(401, 'wrong_password');
     }
-    const out = { ok: true };
-    if (meta.enc) out.enc = meta.enc;
-    return json(out);
+    return json({ ok: true });
   } catch (err) {
     return handleError(err);
   }
