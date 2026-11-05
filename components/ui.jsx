@@ -226,6 +226,15 @@ export function IconTrash() {
   );
 }
 
+export function IconEdit() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16v4Z" />
+      <path d="M13.5 6.5l4 4" />
+    </svg>
+  );
+}
+
 export function IconExternal() {
   return (
     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">

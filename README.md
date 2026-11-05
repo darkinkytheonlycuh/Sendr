@@ -53,6 +53,7 @@ bound to `0.0.0.0` so the site is reachable from your network / the internet.
 | --- | --- | --- |
 | `SENDR_DATA_DIR` | `<project>/.sendr-data` (auto `/tmp/sendr-data` on Vercel) | Where files + metadata live. Point at any big disk. |
 | `SENDR_MAX_BYTES` | `1099511627776` (1 TiB) | Max file size |
+| `SENDR_BLOB_ACCESS` | *(auto-detected)* | `public` or `private`: the access mode of your Vercel Blob store. Optional; set it to skip the first-request probe. |
 | `SENDR_ADMIN_TOKEN` | *(unset = moderation off)* | Secret for `/admin` (reports + takedowns). Use a long random string. |
 | `SENDR_ABUSE_EMAIL` | *(unset)* | Shown on the legal pages as your abuse / DMCA contact |
 | `SENDR_OPERATOR_NAME` | `the operator of this Sendr site` | Your name or company, shown in the Terms |

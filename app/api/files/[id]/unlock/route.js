@@ -34,7 +34,7 @@ export async function POST(req, { params }) {
       await sleep(250);
       return fail(401, 'wrong_password');
     }
-    return json({ ok: true });
+    return json({ ok: true, note: meta.note || '' });
   } catch (err) {
     return handleError(err);
   }

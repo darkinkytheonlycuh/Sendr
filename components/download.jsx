@@ -24,6 +24,7 @@ function usePwQuery(meta, unlocked) {
 export function DownloadView({ meta: initialMeta }) {
   const toast = useToast();
   const [meta] = useState(initialMeta);
+  const [note, setNote] = useState(initialMeta.note || '');
   const [unlocked, setUnlocked] = useState('');
   const [locked, setLocked] = useState(Boolean(meta.protected));
   const [gateError, setGateError] = useState(false);
@@ -70,10 +71,11 @@ export function DownloadView({ meta: initialMeta }) {
     if (gateBusy || !pwInput) return;
     setGateBusy(true);
     try {
-      await jfetch(`/api/files/${meta.id}/unlock`, {
+      const res = await jfetch(`/api/files/${meta.id}/unlock`, {
         method: 'POST',
         body: JSON.stringify({ password: pwInput }),
       });
+      if (res && res.note) setNote(res.note);
       setUnlocked(pwInput);
       setLocked(false);
     } catch {
@@ -141,6 +143,7 @@ export function DownloadView({ meta: initialMeta }) {
         </div>
         <h1 className="dl-name">{meta.name}</h1>
         {chips}
+        {note && <p className="dl-note">{note}</p>}
 
         {(category === 'image' ||
           category === 'video' ||

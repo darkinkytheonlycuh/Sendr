@@ -193,8 +193,8 @@ const FAQ_ITEMS = [
     a: 'Links use unguessable random IDs, and you can add a password on top. Risky formats are forced to download instead of executing in the browser, and there are no accounts or trackers. Password protection gates downloads; files are not end-to-end encrypted.',
   },
   {
-    q: 'Can I delete something later?',
-    a: 'Every upload gets a secret delete key stored in "Your vault" in that browser. Two clicks and it is gone from the server for good.',
+    q: 'Can I edit or delete something later?',
+    a: 'Every upload gets a secret key stored in "Your vault" in that browser. From there you can rename a file, add a note for the recipient, or add, change or remove its password — the link stays the same. Or delete it in two clicks and it is gone from the server for good.',
   },
   {
     q: 'What if my upload gets interrupted?',

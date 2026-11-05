@@ -2,17 +2,105 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { jfetch, loadMine, removeMine } from '@/lib/uploader';
+import { jfetch, loadMine, removeMine, updateMine } from '@/lib/uploader';
 import { canShare, categoryOf, copyText, fmtBytes, fmtDate, shareLink } from '@/lib/format';
 import { useToast } from './toast';
 import {
   Btn,
   Chip,
   FileTypeIcon,
+  IconEdit,
   IconExternal,
   IconShare,
   IconTrash,
 } from './ui';
+
+function EditPanel({ entry, meta, onSaved, onClose }) {
+  const toast = useToast();
+  const [name, setName] = useState(meta?.name || entry.name);
+  const [note, setNote] = useState(meta?.note || '');
+  const [password, setPassword] = useState('');
+  const [removePw, setRemovePw] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const locked = Boolean(meta && meta.protected);
+
+  const save = async (e) => {
+    e.preventDefault();
+    setError('');
+    const body = {};
+    if (name.trim() !== (meta?.name || entry.name)) body.name = name;
+    if (note.trim() !== (meta?.note || '')) body.note = note;
+    if (removePw) body.removePassword = true;
+    else if (password) body.password = password;
+    if (!Object.keys(body).length) {
+      onClose();
+      return;
+    }
+    setBusy(true);
+    try {
+      const res = await jfetch(`/api/files/${entry.id}`, {
+        method: 'PATCH',
+        headers: { 'x-sendr-token': entry.token },
+        body: JSON.stringify(body),
+      });
+      onSaved(res.meta);
+      toast.push('Changes saved', 'ok');
+    } catch (err) {
+      setError(err.message || 'Could not save');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <form className="v-edit" onSubmit={save}>
+      <label>
+        <span>File name</span>
+        <input className="input" value={name} maxLength={200} required onChange={(e) => setName(e.target.value)} />
+      </label>
+      <label>
+        <span>Note for the recipient (shown on the download page)</span>
+        <textarea
+          className="input"
+          rows={3}
+          maxLength={1000}
+          value={note}
+          placeholder="Optional message"
+          onChange={(e) => setNote(e.target.value)}
+        />
+      </label>
+      <label>
+        <span>{locked ? 'Change password (leave blank to keep it)' : 'Add a password (optional)'}</span>
+        <input
+          className="input"
+          type="password"
+          autoComplete="new-password"
+          maxLength={128}
+          value={password}
+          disabled={removePw}
+          onChange={(e) => setPassword(e.target.value)}
+        />
+      </label>
+      {locked && (
+        <label className="v-edit-check">
+          <input type="checkbox" checked={removePw} onChange={(e) => setRemovePw(e.target.checked)} />
+          <span>Remove the password so anyone with the link can download</span>
+        </label>
+      )}
+      {error && <p className="form-error">{error}</p>}
+      <div className="v-edit-actions">
+        <Btn variant="ghost" onClick={onClose} disabled={busy}>
+          Cancel
+        </Btn>
+        <Btn type="submit" disabled={busy || !name.trim()}>
+          {busy ? 'Saving…' : 'Save changes'}
+        </Btn>
+      </div>
+      <p className="v-edit-hint">The share link stays the same.</p>
+    </form>
+  );
+}
 
 export default function Vault() {
   const toast = useToast();
@@ -20,6 +108,7 @@ export default function Vault() {
   const [armed, setArmed] = useState('');
   const [info, setInfo] = useState({});
   const [copied, setCopied] = useState('');
+  const [editing, setEditing] = useState('');
 
   useEffect(() => {
     setEntries(loadMine());
@@ -108,7 +197,8 @@ export default function Vault() {
               const removed = meta && meta.status === 'removed';
               const gone = meta && (meta.status === 'gone' || removed);
               return (
-                <div className="v-item" key={entry.id} style={{ animationDelay: `${i * 45}ms` }}>
+                <div className={`v-entry ${editing === entry.id ? 'is-editing' : ''}`.trim()} key={entry.id}>
+                <div className="v-item" style={{ animationDelay: `${i * 45}ms` }}>
                   <span className="fc-icon" style={{ width: 38, height: 38, borderRadius: 11, marginBottom: 0 }}>
                     <FileTypeIcon category={categoryOf(meta?.type || '', entry.name)} size={18} />
                   </span>
@@ -133,6 +223,16 @@ export default function Vault() {
                       <Link href={`/d/${entry.id}`} target="_blank" className="icon-btn" aria-label={`Open ${entry.name}`}>
                         <IconExternal />
                       </Link>
+                      {meta && meta.status === 'ready' && (
+                        <button
+                          className={`icon-btn ${editing === entry.id ? 'on' : ''}`.trim()}
+                          aria-label={`Edit ${entry.name}`}
+                          aria-expanded={editing === entry.id}
+                          onClick={() => setEditing((cur) => (cur === entry.id ? '' : entry.id))}
+                        >
+                          <IconEdit />
+                        </button>
+                      )}
                     </>
                   )}
                   <button
@@ -143,6 +243,20 @@ export default function Vault() {
                   >
                     <IconTrash />
                   </button>
+                </div>
+                {editing === entry.id && meta && (
+                  <EditPanel
+                    entry={entry}
+                    meta={meta}
+                    onClose={() => setEditing('')}
+                    onSaved={(next) => {
+                      setInfo((prev) => ({ ...prev, [entry.id]: { ...prev[entry.id], ...next } }));
+                      updateMine(entry.id, { name: next.name });
+                      setEntries(loadMine());
+                      setEditing('');
+                    }}
+                  />
+                )}
                 </div>
               );
             })}

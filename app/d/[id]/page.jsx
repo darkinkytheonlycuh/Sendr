@@ -31,5 +31,8 @@ export default async function DownloadPage({ params }) {
   if (meta.status === 'pending') {
     return <PendingGate initial={publicMeta(meta)} />;
   }
-  return <DownloadView meta={publicMeta(meta)} />;
+  const pub = publicMeta(meta);
+  // A locked file's note is only revealed after the password is entered.
+  if (pub.protected) pub.note = '';
+  return <DownloadView meta={pub} />;
 }
