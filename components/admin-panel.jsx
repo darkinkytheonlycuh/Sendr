@@ -64,6 +64,24 @@ export default function AdminPanel() {
     }
   };
 
+  const [migrating, setMigrating] = useState(false);
+  const migrate = async () => {
+    setMigrating(true);
+    let total = 0;
+    try {
+      for (let round = 0; round < 200; round += 1) {
+        const res = await call('/api/admin/migrate', { method: 'POST', body: '{}' });
+        total += res.migrated || 0;
+        if (!res.supported || !res.remaining) break;
+      }
+      toast.push(total ? `Secured ${total} older file${total === 1 ? '' : 's'}` : 'All files already use secure storage paths', 'ok');
+    } catch (err) {
+      toast.push(err.message, 'err');
+    } finally {
+      setMigrating(false);
+    }
+  };
+
   const setStatus = async (reportId, status) => {
     try {
       await call('/api/admin/reports', { method: 'POST', body: JSON.stringify({ reportId, status }) });
@@ -125,6 +143,9 @@ export default function AdminPanel() {
         ))}
         <button className="lock-toggle" onClick={load}>
           Refresh
+        </button>
+        <button className="lock-toggle" onClick={migrate} disabled={migrating}>
+          {migrating ? 'Securing…' : 'Secure older files'}
         </button>
         <button
           className="lock-toggle"

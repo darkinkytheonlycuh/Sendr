@@ -120,7 +120,7 @@ export default function Vault() {
       for (const entry of entries) {
         if (!alive) return;
         try {
-          const res = await jfetch(`/api/files/${entry.id}`);
+          const res = await jfetch(`/api/files/${entry.id}`, { headers: { 'x-sendr-token': entry.token } });
           setInfo((prev) => ({ ...prev, [entry.id]: res.meta }));
         } catch {
           setInfo((prev) => ({

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { jfetch } from '@/lib/uploader';
 import {
@@ -14,18 +14,69 @@ import {
 import { useToast } from './toast';
 import { Btn, Chip, FileTypeIcon, IconCopy, IconDownload, IconExternal, IconLock, IconShare } from './ui';
 
-function usePwQuery(meta, unlocked) {
+// Locked files are read with a short-lived access token from /unlock, never
+// with the password itself in the URL.
+function useAccessQuery(meta, access) {
   return useMemo(() => {
-    if (!meta.protected || !unlocked) return '';
-    return `&pw=${encodeURIComponent(unlocked)}`;
-  }, [meta.protected, unlocked]);
+    if (!meta.protected || !access) return '';
+    return `&t=${encodeURIComponent(access)}`;
+  }, [meta.protected, access]);
+}
+
+// Registers the parallel downloader (public/sendr-sw.js). Until it is active,
+// the Download button falls back to the plain single-stream link.
+function useFastDownload() {
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    if (typeof navigator === 'undefined' || !('serviceWorker' in navigator) || !window.isSecureContext) return;
+    let alive = true;
+    navigator.serviceWorker
+      .register('/sendr-sw.js')
+      .then(() => navigator.serviceWorker.ready)
+      .then((reg) => {
+        if (alive && reg.active) setReady(true);
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, []);
+  return ready;
+}
+
+function useDownloadProgress(job) {
+  const [state, setState] = useState(null);
+  const samples = useRef([]);
+  useEffect(() => {
+    if (typeof BroadcastChannel === 'undefined') return;
+    const ch = new BroadcastChannel('sendr-dl');
+    ch.onmessage = (e) => {
+      const d = e.data || {};
+      if (d.job !== job) return;
+      if (d.error || d.canceled) {
+        samples.current = [];
+        setState(d.error ? { error: true } : null);
+        return;
+      }
+      const now = performance.now();
+      const s = samples.current;
+      s.push({ t: now, b: d.loaded });
+      while (s.length > 2 && now - s[0].t > 3000) s.shift();
+      const span = s.length > 1 ? (s[s.length - 1].t - s[0].t) / 1000 : 0;
+      const speed = span > 0 ? (s[s.length - 1].b - s[0].b) / span : 0;
+      setState({ loaded: d.loaded, size: d.size, speed, done: d.done });
+      if (d.done) samples.current = [];
+    };
+    return () => ch.close();
+  }, [job]);
+  return state;
 }
 
 export function DownloadView({ meta: initialMeta }) {
   const toast = useToast();
-  const [meta] = useState(initialMeta);
+  const [meta, setMeta] = useState(initialMeta);
   const [note, setNote] = useState(initialMeta.note || '');
-  const [unlocked, setUnlocked] = useState('');
+  const [access, setAccess] = useState('');
   const [locked, setLocked] = useState(Boolean(meta.protected));
   const [gateError, setGateError] = useState(false);
   const [gateBusy, setGateBusy] = useState(false);
@@ -38,9 +89,13 @@ export function DownloadView({ meta: initialMeta }) {
     typeof window !== 'undefined'
       ? `${window.location.origin}/d/${meta.id}`
       : `/d/${meta.id}`;
-  const pwq = usePwQuery(meta, unlocked);
+  const pwq = useAccessQuery(meta, access);
   const streamUrl = `/api/dl/${meta.id}?disp=inline${pwq}&v=${meta.completedAt || meta.createdAt}`;
   const dlUrl = `/api/dl/${meta.id}?dl=1${pwq}`;
+  const fast = useFastDownload();
+  const [job] = useState(() => Math.random().toString(36).slice(2, 10));
+  const prog = useDownloadProgress(job);
+  const fastUrl = `/__sendr_dl/${meta.id}?job=${job}${pwq}`;
   const directUrl = typeof window !== 'undefined' ? `${window.location.origin}${dlUrl}` : dlUrl;
   const category = categoryOf(meta.type, meta.name);
 
@@ -75,10 +130,13 @@ export function DownloadView({ meta: initialMeta }) {
         method: 'POST',
         body: JSON.stringify({ password: pwInput }),
       });
+      if (res && res.meta) setMeta(res.meta);
       if (res && res.note) setNote(res.note);
-      setUnlocked(pwInput);
+      setAccess(res.token || '');
+      setPwInput('');
       setLocked(false);
-    } catch {
+    } catch (err) {
+      if (err.code === 'locked_out') toast.push('Too many wrong passwords. Wait a bit and try again.', 'err');
       setGateError(true);
       setTimeout(() => setGateError(false), 600);
     } finally {
@@ -166,7 +224,7 @@ export function DownloadView({ meta: initialMeta }) {
         <div className="cta-row" style={{ marginTop: 24, animation: 'none' }}>
           <a
             className="btn btn-primary btn-lg"
-            href={dlUrl}
+            href={fast ? fastUrl : dlUrl}
             download={meta.name}
             onClick={() => toast.push('Download started', 'ok')}
           >
@@ -185,9 +243,28 @@ export function DownloadView({ meta: initialMeta }) {
           </Btn>
         </div>
 
+        {prog && !prog.error && (
+          <div className={`dl-progress ${prog.done ? 'is-done' : ''}`.trim()} role="status">
+            <div className="dl-progress-bar">
+              <span style={{ transform: `scaleX(${prog.size ? prog.loaded / prog.size : 0})` }} />
+            </div>
+            <div className="dl-progress-text">
+              {prog.done
+                ? `Downloaded ${fmtBytes(prog.size)}`
+                : `${fmtBytes(prog.loaded)} of ${fmtBytes(prog.size)} · ${fmtBytes(prog.speed)}/s`}
+            </div>
+          </div>
+        )}
+        {prog && prog.error && (
+          <p className="form-error" style={{ marginTop: 14 }}>
+            The fast download stopped. <a href={dlUrl}>Try the standard download</a>.
+          </p>
+        )}
+
         {showDirect && (
           <div className="link-box" style={{ marginTop: 16 }}>
             <input className="link-input" readOnly value={directUrl} onFocus={(e) => e.target.select()} />
+            {meta.protected && <span className="v-edit-hint">Works for 12 hours</span>}
             <Btn variant="ghost" onClick={() => doCopy(directUrl, 'direct')}>
               {copied === 'direct' ? 'Copied' : 'Copy'} <IconCopy />
             </Btn>

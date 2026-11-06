@@ -1,3 +1,4 @@
+import { canRead, isOwner, lockedView } from '@/lib/server/access';
 import { destroyUpload, patchMeta, publicMeta, readMeta } from '@/lib/server/store';
 import {
   HttpError,
@@ -33,12 +34,12 @@ export async function GET(req, { params }) {
       }
       throw err;
     }
-    const out = publicMeta(meta);
+    // Locked files show nothing but their existence until unlocked; the sender
+    // (x-sendr-token) and holders of an access token see the details.
+    const out = isOwner(req, meta) || (await canRead(req, meta)) ? publicMeta(meta) : lockedView(meta);
     delete out.chunkCount;
     delete out.chunkSize;
-    delete out.downloads;
-    delete out.sender;
-    if (out.protected) delete out.note;
+    if (!isOwner(req, meta)) delete out.downloads;
     return json({ ok: true, meta: out });
   } catch (err) {
     return handleError(err);
@@ -63,9 +64,7 @@ export async function DELETE(req, { params }) {
       }
       throw err;
     }
-    if (!token || hashToken(token) !== meta.deleteTokenHash) {
-      return fail(403, 'bad_token');
-    }
+    if (!isOwner(req, meta)) return fail(403, 'bad_token');
     await destroyUpload(params.id);
     return json({ ok: true });
   } catch (err) {
@@ -100,20 +99,22 @@ export async function PATCH(req, { params }) {
     if (body.removePassword === true) {
       patch.passwordSalt = undefined;
       patch.passwordHash = undefined;
+      patch.pwFails = 0;
+      patch.pwLockUntil = 0;
     } else if (typeof body.password === 'string' && body.password) {
       if (body.password.length > 128) return fail(400, 'bad_password', 'Password is too long');
       const { salt, hash } = hashPassword(body.password);
       patch.passwordSalt = salt;
       patch.passwordHash = hash;
+      patch.pwFails = 0;
+      patch.pwLockUntil = 0;
     }
     if (!Object.keys(patch).length) return fail(400, 'nothing_to_change');
 
     let meta;
     try {
       meta = await patchMeta(params.id, (current) => {
-        if (!token || hashToken(token) !== current.deleteTokenHash) {
-          throw new HttpError(403, 'bad_token');
-        }
+        if (!isOwner(req, current)) throw new HttpError(403, 'bad_token');
         if (current.status === 'removed') throw new HttpError(410, 'removed');
         if (current.status !== 'ready') throw new HttpError(409, 'not_ready');
         return { ...patch, editedAt: Date.now() };

@@ -1,3 +1,4 @@
+import { safeEqual } from '@/lib/server/secret';
 import { destroyUpload, readMeta } from '@/lib/server/store';
 import {
   fail,
@@ -29,7 +30,7 @@ export async function POST(req) {
     } catch {
       return json({ ok: true, gone: true });
     }
-    if (!token || hashToken(token) !== meta.deleteTokenHash) {
+    if (!token || !safeEqual(hashToken(token), meta.deleteTokenHash || '')) {
       return fail(403, 'bad_token');
     }
     if (meta.status === 'ready') {

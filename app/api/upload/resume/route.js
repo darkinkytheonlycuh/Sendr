@@ -1,4 +1,5 @@
-﻿import { listExistingChunks, publicMeta, readMeta } from '@/lib/server/store';
+import { safeEqual } from '@/lib/server/secret';
+import { listExistingChunks, publicMeta, readMeta } from '@/lib/server/store';
 import {
   HttpError,
   fail,
@@ -34,7 +35,7 @@ export async function POST(req) {
       }
       throw err;
     }
-    if (!token || hashToken(token) !== meta.deleteTokenHash) {
+    if (!token || !safeEqual(hashToken(token), meta.deleteTokenHash || '')) {
       return fail(403, 'bad_token');
     }
     if (meta.status === 'ready') {

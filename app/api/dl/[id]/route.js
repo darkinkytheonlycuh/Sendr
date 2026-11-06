@@ -1,4 +1,5 @@
-﻿import { TEXT_PREVIEW_LIMIT } from '@/lib/server/config';
+import { canRead } from '@/lib/server/access';
+import { TEXT_PREVIEW_LIMIT } from '@/lib/server/config';
 import {
   parseRange,
   patchMeta,
@@ -50,12 +51,10 @@ export async function GET(req, { params }) {
     if (meta.status !== 'ready') return fail(409, 'not_ready');
 
     const url = new URL(req.url);
-    const pw = url.searchParams.get('pw') || '';
-    if (meta.passwordHash && !verifyPassword(meta, pw)) {
-      await sleep(200);
+    if (!(await canRead(req, meta))) {
       return Response.json(
-        { error: 'locked', message: 'Password required' },
-        { status: 401 }
+        { error: 'locked', message: 'This file is locked. Unlock it on its download page.' },
+        { status: 401, headers: { 'Cache-Control': 'no-store' } }
       );
     }
 
@@ -86,7 +85,9 @@ export async function GET(req, { params }) {
       if (max > 0 && end - start + 1 > max) end = start + max - 1;
     }
 
-    const isFullDownload = !wantInline && (!range || range.start === 0);
+    // nocount=1: a piece of a parallel download (counted once by /plan).
+    const isFullDownload =
+      !wantInline && (!range || range.start === 0) && url.searchParams.get('nocount') !== '1';
     if (isFullDownload) {
       patchMeta(meta.id, (m) => {
         m.downloads = (m.downloads || 0) + 1;
@@ -114,7 +115,18 @@ export async function GET(req, { params }) {
       'Last-Modified',
       new Date(meta.createdAt || Date.now()).toUTCString()
     );
-    headers.set('Cache-Control', wantInline ? 'public, max-age=3600' : 'no-store');
+    // Locked files must never sit in a shared cache.
+    headers.set('Cache-Control', wantInline && !meta.passwordHash ? 'private, max-age=3600' : 'no-store');
+    // Uploaded bytes are never allowed to run as a page on this site.
+    // (Chrome refuses to render PDFs under a CSP sandbox, so PDFs get the rest.)
+    const isPdf = wantInline && /^application\/pdf/i.test(ctype);
+    headers.set(
+      'Content-Security-Policy',
+      `default-src 'none'; img-src 'self'; media-src 'self'; style-src 'unsafe-inline'; frame-ancestors 'self'${isPdf ? '' : '; sandbox'}`
+    );
+    headers.set('X-Content-Type-Options', 'nosniff');
+    headers.set('Cross-Origin-Resource-Policy', 'same-origin');
+    headers.set('Referrer-Policy', 'no-referrer');
     if (range) {
       headers.set('Content-Range', `bytes ${start}-${end}/${size}`);
     }

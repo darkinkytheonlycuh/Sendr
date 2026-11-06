@@ -1,4 +1,5 @@
-﻿import { expectedChunkSize, putChunk, readMeta } from '@/lib/server/store';
+import { safeEqual } from '@/lib/server/secret';
+import { expectedChunkSize, putChunk, readMeta } from '@/lib/server/store';
 import {
   HttpError,
   fail,
@@ -39,7 +40,7 @@ export async function PUT(req) {
     }
     if (meta.status === 'ready') return fail(409, 'already_completed');
     if (meta.status !== 'pending') return fail(409, 'not_pending');
-    if (!token || hashToken(token) !== meta.deleteTokenHash) {
+    if (!token || !safeEqual(hashToken(token), meta.deleteTokenHash || '')) {
       return fail(403, 'bad_token');
     }
     if (index < 0 || index >= meta.chunkCount) return fail(400, 'bad_index');

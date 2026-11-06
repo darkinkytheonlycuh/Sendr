@@ -1,4 +1,5 @@
-﻿import {
+import { safeEqual } from '@/lib/server/secret';
+import {
   chunkSizes,
   patchMeta,
   publicMeta,
@@ -39,7 +40,7 @@ export async function POST(req) {
       }
       throw err;
     }
-    if (!token || hashToken(token) !== meta.deleteTokenHash) {
+    if (!token || !safeEqual(hashToken(token), meta.deleteTokenHash || '')) {
       return fail(403, 'bad_token');
     }
     if (meta.status === 'ready') {

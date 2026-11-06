@@ -54,6 +54,8 @@ bound to `0.0.0.0` so the site is reachable from your network / the internet.
 | `SENDR_DATA_DIR` | `<project>/.sendr-data` (auto `/tmp/sendr-data` on Vercel) | Where files + metadata live. Point at any big disk. |
 | `SENDR_MAX_BYTES` | `1099511627776` (1 TiB) | Max file size |
 | `SENDR_BLOB_ACCESS` | *(auto-detected)* | `public` or `private`: the access mode of your Vercel Blob store. Optional; set it to skip the first-request probe. |
+| `SENDR_SECRET` | *(Blob/R2 token)* | Long random string that signs download tokens and hides storage paths. Recommended. Changing it later is safe (older files are still found) but signs everyone out of unlocked files. |
+| `SENDR_DIRECT` | *(on)* | Set to `0` to turn off direct browser-to-Blob transfers and send every byte through the API routes. |
 | `SENDR_ADMIN_TOKEN` | *(unset = moderation off)* | Secret for `/admin` (reports + takedowns). Use a long random string. |
 | `SENDR_ABUSE_EMAIL` | *(unset)* | Shown on the legal pages as your abuse / DMCA contact |
 | `SENDR_OPERATOR_NAME` | `the operator of this Sendr site` | Your name or company, shown in the Terms |
@@ -96,7 +98,7 @@ file starts downloading instantly.
 | `GET /api/files/:id` | public metadata |
 | `DELETE /api/files/:id` | header `x-sendr-token`, destroys permanently |
 | `POST /api/files/:id/unlock` | `{password}` check |
-| `GET /api/dl/:id` | download / preview stream (`?disp=inline`, `?pw=`, Range OK) |
+| `GET /api/dl/:id` | download / preview stream (`?disp=inline`, `?t=<access token>` or `x-sendr-password` header for locked files, Range OK) |
 | `GET /api/stats` | aggregate counters (cached 10 s) |
 
 ## Deploying
@@ -175,7 +177,14 @@ deletes it, or an admin removes it. That only holds while the storage exists, so
 
 ## Security notes
 
-- Delete keys & passwords are only ever stored **hashed** (SHA-256 / scrypt).
-- Unlocks and mutations are rate-limited; wrong passwords get a delay.
-- HTML/SVG/etc. are always forced to download (`nosniff`, strict inline whitelist).
-- IDs are random base32 - unguessable, unlisted.
+- **Nothing is guessable from a link.** IDs are 16 random characters. In Blob/R2 storage every object path also carries a secret tag (`sendr/meta/<id>.<hmac>.json`, `sendr/files/<id>.<random>/…`), so even a *public* Blob store can't be read by building URLs. Files uploaded before this layout can be moved with **Secure older files** on `/admin`.
+- **Locked files reveal nothing until unlocked**: no name, type, size, note or sender, in the page, its title, link previews or the API.
+- **Passwords never go in URLs.** `/unlock` swaps the password for a 12-hour access token bound to the file *and* its current password: changing or removing the password revokes every token.
+- **Brute force is capped per file**, not just per IP: after 5 wrong passwords the file locks for 30 s, doubling to a 15-minute max. The counter is stored with the file, so rotating IPs or hitting other server instances doesn't help.
+- **Secrets are stored hashed** (delete keys SHA-256, passwords scrypt) and compared in constant time.
+- **Direct storage URLs are short-lived**: uploads 10 min, downloads 20 min, each signed for one chunk path.
+- **Uploaded bytes can't run as code on the site**: risky types always download, and every file response has `nosniff` plus a CSP `sandbox`.
+- **Pages ship strict headers**: CSP (no third-party scripts, no framing, no plugins), HSTS, `Referrer-Policy: no-referrer` (file links never leak to other sites), `X-Frame-Options: DENY`, Permissions-Policy.
+- **Rate limits use the platform's client IP** (`x-vercel-forwarded-for` / `x-real-ip`), which clients can't forge.
+- **Errors never echo internal details** (storage paths, stack traces).
+- **No end-to-end encryption**: the server (and the storage provider) can read files. Use a private Blob store, and encrypt before uploading if the operator must not see contents.

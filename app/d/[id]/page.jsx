@@ -1,3 +1,4 @@
+import { lockedView } from '@/lib/server/access';
 import { publicMeta, readMeta } from '@/lib/server/store';
 import { isValidId } from '@/lib/server/util';
 import { fmtBytes } from '@/lib/format';
@@ -10,8 +11,12 @@ export async function generateMetadata({ params }) {
     if (!isValidId(params.id)) return { title: 'Send not found' };
     const meta = await readMeta(params.id);
     if (meta && meta.status === 'removed') return { title: 'File removed', robots: { index: false } };
+    if (meta && meta.status === 'ready' && meta.passwordHash) {
+      return { title: 'Locked file', robots: { index: false } };
+    }
     if (meta && meta.status === 'ready') {
       return {
+        robots: { index: false },
         title: `${meta.name} · ${fmtBytes(meta.size)}`,
         description: `A forever link sent with Sendr — ${fmtBytes(meta.size)}, never expires.`,
       };
@@ -31,8 +36,6 @@ export default async function DownloadPage({ params }) {
   if (meta.status === 'pending') {
     return <PendingGate initial={publicMeta(meta)} />;
   }
-  const pub = publicMeta(meta);
-  // A locked file's note is only revealed after the password is entered.
-  if (pub.protected) pub.note = '';
-  return <DownloadView meta={pub} />;
+  // A locked file's name, type, size and note are only sent after unlocking.
+  return <DownloadView meta={meta.passwordHash ? lockedView(meta) : publicMeta(meta)} />;
 }

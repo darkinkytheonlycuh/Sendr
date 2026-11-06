@@ -14,6 +14,7 @@ import {
   sanitizeUserName,
 } from '@/lib/server/util';
 import {
+  newChunkTag,
   prepareUploadDir,
   publicMeta,
   readMeta,
@@ -66,7 +67,7 @@ export async function POST(req) {
 
     let id = null;
     for (let i = 0; i < 6; i += 1) {
-      const candidate = newId(12);
+      const candidate = newId(16);
       try {
         await readMeta(candidate);
       } catch {
@@ -79,6 +80,8 @@ export async function POST(req) {
     const token = newToken();
     const meta = {
       v: 2,
+      layout: 3,
+      chunkTag: newChunkTag(),
       id,
       name,
       size,
